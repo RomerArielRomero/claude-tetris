@@ -28,5 +28,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          model: claude-haiku-4-5
+          model: opencode/big-pickle
           use_github_token: true
