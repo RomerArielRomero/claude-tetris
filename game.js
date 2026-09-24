@@ -15,6 +15,7 @@ const COLORS = {
     '#90caf9', // J - pale blue
     '#ffb74d', // L - orange
     '#b0bec5', // N - steel white
+    '#ff5722', // B - bomb deep orange
   ],
   light: [
     null,
@@ -26,6 +27,7 @@ const COLORS = {
     '#1565c0', // J - azul oscuro
     '#e65100', // L - orange oscuro
     '#546e7a', // N - steel oscuro
+    '#bf360c', // B - bomb deep orange oscuro
   ],
 };
 
@@ -54,6 +56,7 @@ const PIECES = [
   [[6,0,0],[6,6,6],[0,0,0]],                  // J
   [[0,0,7],[7,7,7],[0,0,0]],                  // L
   [[8,8,8],[8,0,8],[8,8,8]],                  // N - tuerca hueca
+  [[9]],                                       // B - bomba
 ];
 
 const LINE_SCORES = [0, 100, 300, 500, 800];
@@ -70,14 +73,14 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 
-let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId, effects;
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
 }
 
 function randomPiece() {
-  const type = Math.floor(Math.random() * 8) + 1;
+  const type = Math.floor(Math.random() * 9) + 1;
   const shape = PIECES[type].map(row => [...row]);
   return { type, shape, x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2), y: 0 };
 }
@@ -166,9 +169,79 @@ function softDrop() {
 }
 
 function lockPiece() {
-  merge();
+  if (current.type === 9) {
+    explode(current.x, current.y);
+  } else {
+    merge();
+  }
   clearLines();
   spawn();
+}
+
+function explode(cx, cy) {
+  let destroyed = 0;
+  for (let r = cy - 1; r <= cy + 1; r++) {
+    for (let c = cx - 1; c <= cx + 1; c++) {
+      if (r < 0 || r >= ROWS || c < 0 || c >= COLS) continue;
+      if (board[r][c]) {
+        board[r][c] = 0;
+        destroyed++;
+      }
+    }
+  }
+  if (destroyed) {
+    score += destroyed * 5;
+    updateHUD();
+  }
+  const px = (cx + 0.5) * BLOCK;
+  const py = (cy + 0.5) * BLOCK;
+  const particles = [];
+  const count = 16;
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.6;
+    particles.push({
+      angle,
+      speed: 80 + Math.random() * 160,
+      life: 350 + Math.random() * 250,
+      size: 3 + Math.random() * 4,
+      color: Math.random() < 0.5 ? '#ffd54f' : '#ff5722',
+    });
+  }
+  effects.push({ x: px, y: py, start: performance.now(), particles });
+}
+
+function drawEffects() {
+  if (!effects.length) return;
+  const now = performance.now();
+  for (const fx of effects) {
+    const elapsed = now - fx.start;
+    const progress = elapsed / 750;
+    if (progress >= 1) continue;
+    // shockwave ring
+    ctx.globalAlpha = 1 - progress;
+    ctx.lineWidth = 4 * (1 - progress) + 1;
+    ctx.strokeStyle = '#ffd54f';
+    ctx.beginPath();
+    ctx.arc(fx.x, fx.y, 8 + progress * BLOCK * 2.5, 0, Math.PI * 2);
+    ctx.stroke();
+    // core flash
+    ctx.fillStyle = '#ffd54f';
+    ctx.beginPath();
+    ctx.arc(fx.x, fx.y, Math.max(0, 6 * (1 - progress)), 0, Math.PI * 2);
+    ctx.fill();
+    // particles
+    for (const p of fx.particles) {
+      const pt = elapsed / p.life;
+      if (pt >= 1) continue;
+      ctx.globalAlpha = 1 - pt;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(fx.x + Math.cos(p.angle) * p.speed * pt, fx.y + Math.sin(p.angle) * p.speed * pt, p.size * (1 - pt), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+  ctx.lineWidth = 1;
 }
 
 function spawn() {
@@ -190,6 +263,18 @@ function drawBlock(context, x, y, colorIndex, size, alpha) {
   if (!colorIndex) return;
   const color = COLORS[currentTheme()][colorIndex];
   context.globalAlpha = alpha ?? 1;
+  if (colorIndex === 9) {
+    context.fillStyle = color;
+    context.beginPath();
+    context.arc(x * size + size / 2, y * size + size / 2, size / 2 - 2, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = THEMES.blockHighlight[currentTheme()];
+    context.beginPath();
+    context.arc(x * size + size / 2 - size / 5, y * size + size / 2 - size / 5, size / 6, 0, Math.PI * 2);
+    context.fill();
+    context.globalAlpha = 1;
+    return;
+  }
   context.fillStyle = color;
   context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
   // highlight
@@ -237,6 +322,8 @@ function draw() {
   for (let r = 0; r < current.shape.length; r++)
     for (let c = 0; c < current.shape[r].length; c++)
       drawBlock(ctx, current.x + c, current.y + r, current.shape[r][c], BLOCK);
+
+  drawEffects();
 }
 
 function drawNext() {
@@ -285,12 +372,14 @@ function loop(ts) {
     }
   }
   draw();
+  effects = effects.filter(fx => performance.now() - fx.start < 750);
   if (gameOver) return;
   animId = requestAnimationFrame(loop);
 }
 
 function init() {
   board = createBoard();
+  effects = [];
   score = 0;
   lines = 0;
   level = 1;
