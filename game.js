@@ -4,16 +4,43 @@ const COLS = 10;
 const ROWS = 20;
 const BLOCK = 30;
 
-const COLORS = [
-  null,
-  '#4dd0e1', // I - cyan
-  '#ffd54f', // O - yellow
-  '#ba68c8', // T - purple
-  '#81c784', // S - green
-  '#e57373', // Z - red
-  '#90caf9', // J - pale blue
-  '#ffb74d', // L - orange
-];
+const COLORS = {
+  dark: [
+    null,
+    '#4dd0e1', // I - cyan
+    '#ffd54f', // O - yellow
+    '#ba68c8', // T - purple
+    '#81c784', // S - green
+    '#e57373', // Z - red
+    '#90caf9', // J - pale blue
+    '#ffb74d', // L - orange
+  ],
+  light: [
+    null,
+    '#007a8c', // I - cyan profundo
+    '#d8a000', // O - yellow oscuro
+    '#7b1fa2', // T - purple de alto contraste
+    '#2e7d32', // S - green oscuro
+    '#c62828', // Z - red oscuro
+    '#1565c0', // J - azul oscuro
+    '#e65100', // L - orange oscuro
+  ],
+};
+
+const THEMES = {
+  grid: {
+    dark: '#22222e',
+    light: '#d6dae8',
+  },
+  blockHighlight: {
+    dark: 'rgba(255,255,255,0.12)',
+    light: 'rgba(255,255,255,0.55)',
+  },
+};
+
+function currentTheme() {
+  return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+}
 
 const PIECES = [
   null,
@@ -158,18 +185,18 @@ function updateHUD() {
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
   if (!colorIndex) return;
-  const color = COLORS[colorIndex];
+  const color = COLORS[currentTheme()][colorIndex];
   context.globalAlpha = alpha ?? 1;
   context.fillStyle = color;
   context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
   // highlight
-  context.fillStyle = 'rgba(255,255,255,0.12)';
+  context.fillStyle = THEMES.blockHighlight[currentTheme()];
   context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
   context.globalAlpha = 1;
 }
 
 function drawGrid() {
-  ctx.strokeStyle = '#22222e';
+  ctx.strokeStyle = THEMES.grid[currentTheme()];
   ctx.lineWidth = 0.5;
   for (let c = 1; c < COLS; c++) {
     ctx.beginPath();
@@ -301,4 +328,31 @@ document.addEventListener('keydown', e => {
 
 restartBtn.addEventListener('click', init);
 
+const themeToggle = document.getElementById('theme-toggle');
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  themeToggle.checked = theme === 'light';
+  try {
+    localStorage.setItem('tetris-theme', theme);
+  } catch (e) {}
+  if (current) {
+    draw();
+    drawNext();
+  }
+}
+
+themeToggle.addEventListener('change', () => {
+  applyTheme(themeToggle.checked ? 'light' : 'dark');
+});
+
+function restoreTheme() {
+  let saved = null;
+  try {
+    saved = localStorage.getItem('tetris-theme');
+  } catch (e) {}
+  applyTheme(saved === 'light' ? 'light' : 'dark');
+}
+
 init();
+restoreTheme();
