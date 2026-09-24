@@ -1,0 +1,76 @@
+name: Issue Triage
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Triage issue with OpenCode
+        uses: anomalyco/opencode/github@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          model: opencode/big-pickle
+          use_github_token: true
+          prompt: |
+            Eres el asistente de triage del repositorio "${{ github.repository }}" (
+            Tetris en JavaScript vanilla con HTML5 Canvas + CSS + JS ES6, sin dependencias). Los
+            archivos principales son index.html, style.css, game.js (toda la lógica del juego) y
+            README.md.
+
+            Estás analizando el issue #${{ github.event.issue.number }}. Trabaja siempre en español.
+
+            PASO 1 - Clasificar el issue
+            Lee el título, el cuerpo y los comentarios del issue. Determina UNA categoría principal y
+            como máximo una secundaria, usando SOLO esta taxonomía:
+            - bug: comportamiento incorrecto, error o defecto.
+            - enhancement: nueva funcionalidad o mejora de una existente.
+            - ui: aspecto visual (canvas, estilos, colores, overlay, HUD, panel).
+            - gameplay: mecánicas de juego (piezas, rotación, wall kicks, colisiones, puntuación, niveles, velocidad, ghost piece).
+            - performance: rendimiento (requestAnimationFrame, lag, uso de CPU).
+            - refactor: limpieza o reorganización de código sin cambiar comportamiento.
+            - docs: documentación (README, comentarios, texto de la interfaz).
+            - question: pregunta o consulta sin tarea concreta.
+
+            PASO 2 - Aplicar los labels
+            El entorno tiene autenticada la CLI `gh`. Con el repositorio "${{ github.repository }}" haz:
+            1. Crear el label si no existe: `gh label create "<label>" --color "<hex>" --force`
+               Paleta sugerida por label: bug=d73a4a, enhancement=a2eeef, ui=1d76db,
+               gameplay=5319e7, performance=fbca04, refactor=0e8a16, docs=0075ca, question=d876e3.
+            2. Asignarlo al issue: `gh issue edit <NUMBER> --add-label "<label>"` (una llamada por label).
+            No elimines labels ya existentes. Si el issue ya tiene comentarios de diagnóstico previos y
+            están desactualizados, borra los anteriores antes de responder para mantener un único diagnóstico.
+
+            PASO 3 - Redactar el diagnóstico
+            Tu respuesta final será publicada automáticamente como comentario en el issue. Usa esta
+            estructura en español:
+            ## 🩺 Diagnóstico
+            - **Categoría(s):** <labels asignados>
+            - **Resumen:** <qué pide o describe el issue en 2-3 frases>
+            - **Causa probable / alcance:** <área del código o comportamiento afectado, archivos, funciones, constantes>
+            - **Solución sugerida:** <enfoque general de implementación y pasos de alto nivel, SIN escribir código completo>
+            - **Preguntas abiertas:** <solo si hace falta aclarar algo con el autor>
+
+            RESTRICCIONES
+            - NO modifiques, crees ni borres archivos del repositorio.
+            - NO hagas commit, NO crees ramas ni push, NO abras pull requests.
+            - Usa `gh` únicamente para gestionar labels y comentarios de diagnóstico.
+            - En caso de duda, elige la categoría más conservadora.
+        # Tip: si quieres limitar el triage a issues de cuentas antiguas (anti-spam),
+        # añade antes un paso actions/github-script@v7 que filtre por antigüedad de la cuenta.
