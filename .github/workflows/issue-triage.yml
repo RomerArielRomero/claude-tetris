@@ -54,12 +54,13 @@ jobs:
                Paleta sugerida por label: bug=d73a4a, enhancement=a2eeef, ui=1d76db,
                gameplay=5319e7, performance=fbca04, refactor=0e8a16, docs=0075ca, question=d876e3.
             2. Asignarlo al issue: `gh issue edit <NUMBER> --add-label "<label>"` (una llamada por label).
-            No elimines labels ya existentes. Si el issue ya tiene comentarios de diagnóstico previos y
-            están desactualizados, borra los anteriores antes de responder para mantener un único diagnóstico.
+            No elimines labels ya existentes.
 
-            PASO 3 - Redactar el diagnóstico
-            Tu respuesta final será publicada automáticamente como comentario en el issue. Usa esta
-            estructura en español:
+            PASO 3 - Redactar el diagnóstico (NO lo publiques tú mismo)
+            NO uses `gh issue comment` para publicar nada: el runner publicará automáticamente tu
+            respuesta final como el único comentario de diagnóstico. Si quieres reemplazar un
+            diagnóstico tuyo anterior, bórralo con gh antes de terminar. Redacta tu respuesta final con
+            esta estructura en español:
             ## 🩺 Diagnóstico
             - **Categoría(s):** <labels asignados>
             - **Resumen:** <qué pide o describe el issue en 2-3 frases>
@@ -70,7 +71,7 @@ jobs:
             RESTRICCIONES
             - NO modifiques, crees ni borres archivos del repositorio.
             - NO hagas commit, NO crees ramas ni push, NO abras pull requests.
-            - Usa `gh` únicamente para gestionar labels y comentarios de diagnóstico.
+            - Usa `gh` únicamente para gestionar labels y para borrar diagnósticos anteriores tuyos.
             - En caso de duda, elige la categoría más conservadora.
         # Tip: si quieres limitar el triage a issues de cuentas antiguas (anti-spam),
         # añade antes un paso actions/github-script@v7 que filtre por antigüedad de la cuenta.
